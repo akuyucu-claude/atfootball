@@ -1,6 +1,8 @@
+import json
 from flask import Flask, request, jsonify, render_template
-from models import db, Team, Player, Match, Standing, PlayerStats
+from models import db, Team, Player, Match, Standing, PlayerStats, NewsArticle
 from seed import seed_database
+from news import fetch_all_news, process_articles_with_llm, scan_news_for_team, scan_news_for_player
 from datetime import date
 
 
@@ -247,6 +249,106 @@ def create_player_stats():
     db.session.add(stats)
     db.session.commit()
     return jsonify(stats.to_dict()), 201
+
+
+# ── News API ──────────────────────────────────────────────────────────
+
+@app.route("/api/news/scan", methods=["POST"])
+def scan_news():
+    """Fetch latest news from RSS feeds about Austrian football."""
+    data = request.get_json() or {}
+    team_name = data.get("team")
+    player_name = data.get("player")
+
+    if team_name:
+        articles = scan_news_for_team(team_name)
+    elif player_name:
+        articles = scan_news_for_player(player_name)
+    else:
+        articles = fetch_all_news(filter_relevant=True)
+
+    # Store raw articles in DB
+    for a in articles[:30]:
+        existing = NewsArticle.query.filter_by(title=a["title"], link=a.get("link")).first()
+        if not existing:
+            article = NewsArticle(
+                title=a["title"],
+                link=a.get("link"),
+                description=a.get("description"),
+                source_name=a.get("source_name"),
+                pub_date=a.get("pub_date"),
+            )
+            db.session.add(article)
+    db.session.commit()
+
+    return jsonify({
+        "count": len(articles),
+        "articles": articles[:30],
+    })
+
+
+@app.route("/api/news/analyze", methods=["POST"])
+def analyze_news():
+    """Fetch news and process with Claude LLM for structured insights."""
+    data = request.get_json() or {}
+    team_name = data.get("team")
+    player_name = data.get("player")
+
+    # Gather context from DB
+    teams = [t.name for t in Team.query.all()]
+    players = [f"{p.first_name} {p.last_name}" for p in Player.query.all()]
+
+    if team_name:
+        articles = scan_news_for_team(team_name)
+        teams = [team_name]
+    elif player_name:
+        articles = scan_news_for_player(player_name)
+        players = [player_name]
+    else:
+        articles = fetch_all_news(filter_relevant=True)
+
+    if not articles:
+        return jsonify({
+            "summary": "No relevant Austrian football news found at this time.",
+            "articles": [],
+            "key_highlights": [],
+        })
+
+    try:
+        result = process_articles_with_llm(articles[:20], teams=teams, players=players)
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 500
+
+    # Store LLM-processed articles in DB
+    if "articles" in result:
+        for processed in result["articles"]:
+            existing = NewsArticle.query.filter_by(title=processed.get("title", "")).first()
+            if existing:
+                existing.llm_summary = processed.get("summary")
+                existing.sentiment = processed.get("sentiment")
+                existing.category = processed.get("category")
+                existing.teams_mentioned = json.dumps(processed.get("teams_mentioned", []))
+                existing.players_mentioned = json.dumps(processed.get("players_mentioned", []))
+                existing.relevance_score = processed.get("relevance_score")
+        db.session.commit()
+
+    return jsonify(result)
+
+
+@app.route("/api/news", methods=["GET"])
+def get_stored_news():
+    """Get previously fetched and analyzed news from the database."""
+    team = request.args.get("team")
+    category = request.args.get("category")
+    query = NewsArticle.query
+
+    if team:
+        query = query.filter(NewsArticle.teams_mentioned.contains(team))
+    if category:
+        query = query.filter_by(category=category)
+
+    articles = query.order_by(NewsArticle.fetched_at.desc()).limit(50).all()
+    return jsonify([a.to_dict() for a in articles])
 
 
 # ── Seed endpoint ─────────────────────────────────────────────────────

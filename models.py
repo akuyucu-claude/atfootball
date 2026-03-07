@@ -174,3 +174,39 @@ class PlayerStats(db.Model):
             "red_cards": self.red_cards,
             "minutes_played": self.minutes_played,
         }
+
+
+class NewsArticle(db.Model):
+    __tablename__ = "news_articles"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(300), nullable=False)
+    link = db.Column(db.String(500))
+    description = db.Column(db.Text)
+    source_name = db.Column(db.String(120))
+    pub_date = db.Column(db.String(100))
+    llm_summary = db.Column(db.Text)
+    sentiment = db.Column(db.String(20))
+    category = db.Column(db.String(30))
+    teams_mentioned = db.Column(db.Text)  # JSON array
+    players_mentioned = db.Column(db.Text)  # JSON array
+    relevance_score = db.Column(db.Integer)
+    fetched_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        import json
+        return {
+            "id": self.id,
+            "title": self.title,
+            "link": self.link,
+            "description": self.description,
+            "source_name": self.source_name,
+            "pub_date": self.pub_date,
+            "llm_summary": self.llm_summary,
+            "sentiment": self.sentiment,
+            "category": self.category,
+            "teams_mentioned": json.loads(self.teams_mentioned) if self.teams_mentioned else [],
+            "players_mentioned": json.loads(self.players_mentioned) if self.players_mentioned else [],
+            "relevance_score": self.relevance_score,
+            "fetched_at": self.fetched_at.isoformat() if self.fetched_at else None,
+        }

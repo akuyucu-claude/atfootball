@@ -20,6 +20,7 @@
     <button data-section="players">Players</button>
     <button data-section="standings">Standings</button>
     <button data-section="matches">Matches</button>
+    <button data-section="news">News</button>
 </nav>
 
 <main>
@@ -102,6 +103,45 @@
             <h2>Matches</h2>
         </div>
         <div id="matches-list" class="matches-list"></div>
+    </div>
+
+    <!-- News Section -->
+    <div id="news" class="section">
+        <div class="section-header">
+            <h2>News Scanner</h2>
+            <div style="display:flex;gap:0.5rem;">
+                <button class="btn btn-primary" id="scan-btn" onclick="scanNews()">Scan News</button>
+                <button class="btn btn-primary" id="analyze-btn" onclick="analyzeNews()">Analyze with AI</button>
+            </div>
+        </div>
+        <div class="filters">
+            <select id="news-team-filter">
+                <option value="">All Teams</option>
+            </select>
+            <select id="news-category-filter" onchange="loadStoredNews()">
+                <option value="">All Categories</option>
+                <option value="transfer">Transfers</option>
+                <option value="match_result">Match Results</option>
+                <option value="injury">Injuries</option>
+                <option value="league_news">League News</option>
+                <option value="general">General</option>
+            </select>
+        </div>
+
+        <!-- AI Analysis Panel -->
+        <div id="ai-analysis" class="card" style="display:none; margin-bottom:1.5rem; padding:1.5rem;">
+            <h3 style="color:var(--primary); margin-bottom:1rem;">AI Analysis</h3>
+            <div id="ai-summary" style="margin-bottom:1rem;"></div>
+            <div id="ai-highlights"></div>
+            <div id="ai-transfers" style="margin-top:1rem;"></div>
+            <div id="ai-injuries" style="margin-top:1rem;"></div>
+        </div>
+
+        <!-- News Articles -->
+        <div id="news-list"></div>
+
+        <!-- Stored/Analyzed News -->
+        <div id="stored-news" style="margin-top:1.5rem;"></div>
     </div>
 </main>
 
