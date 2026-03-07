@@ -87,8 +87,10 @@ class Match(db.Model):
     venue = db.Column(db.String(120))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    match_stats = db.relationship("MatchStats", backref="match", uselist=False, lazy=True)
+
     def to_dict(self):
-        return {
+        data = {
             "id": self.id,
             "home_team": self.home_team.to_dict() if self.home_team else None,
             "away_team": self.away_team.to_dict() if self.away_team else None,
@@ -99,6 +101,185 @@ class Match(db.Model):
             "away_score": self.away_score,
             "status": self.status,
             "venue": self.venue,
+        }
+        if self.match_stats:
+            data["stats"] = self.match_stats.to_dict()
+        return data
+
+
+class MatchStats(db.Model):
+    __tablename__ = "match_stats"
+
+    id = db.Column(db.Integer, primary_key=True)
+    match_id = db.Column(db.Integer, db.ForeignKey("matches.id"), nullable=False, unique=True)
+
+    # Possession (percentage for home, away = 100 - home)
+    home_possession = db.Column(db.Integer)
+
+    # Shots
+    home_shots = db.Column(db.Integer, default=0)
+    away_shots = db.Column(db.Integer, default=0)
+    home_shots_on_target = db.Column(db.Integer, default=0)
+    away_shots_on_target = db.Column(db.Integer, default=0)
+
+    # Passes
+    home_passes = db.Column(db.Integer, default=0)
+    away_passes = db.Column(db.Integer, default=0)
+    home_pass_accuracy = db.Column(db.Integer)  # percentage
+    away_pass_accuracy = db.Column(db.Integer)
+
+    # Set pieces
+    home_corners = db.Column(db.Integer, default=0)
+    away_corners = db.Column(db.Integer, default=0)
+    home_free_kicks = db.Column(db.Integer, default=0)
+    away_free_kicks = db.Column(db.Integer, default=0)
+
+    # Discipline
+    home_fouls = db.Column(db.Integer, default=0)
+    away_fouls = db.Column(db.Integer, default=0)
+    home_yellow_cards = db.Column(db.Integer, default=0)
+    away_yellow_cards = db.Column(db.Integer, default=0)
+    home_red_cards = db.Column(db.Integer, default=0)
+    away_red_cards = db.Column(db.Integer, default=0)
+
+    # Other
+    home_offsides = db.Column(db.Integer, default=0)
+    away_offsides = db.Column(db.Integer, default=0)
+    home_tackles = db.Column(db.Integer, default=0)
+    away_tackles = db.Column(db.Integer, default=0)
+    home_saves = db.Column(db.Integer, default=0)
+    away_saves = db.Column(db.Integer, default=0)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "match_id": self.match_id,
+            "home_possession": self.home_possession,
+            "away_possession": (100 - self.home_possession) if self.home_possession else None,
+            "home_shots": self.home_shots,
+            "away_shots": self.away_shots,
+            "home_shots_on_target": self.home_shots_on_target,
+            "away_shots_on_target": self.away_shots_on_target,
+            "home_passes": self.home_passes,
+            "away_passes": self.away_passes,
+            "home_pass_accuracy": self.home_pass_accuracy,
+            "away_pass_accuracy": self.away_pass_accuracy,
+            "home_corners": self.home_corners,
+            "away_corners": self.away_corners,
+            "home_free_kicks": self.home_free_kicks,
+            "away_free_kicks": self.away_free_kicks,
+            "home_fouls": self.home_fouls,
+            "away_fouls": self.away_fouls,
+            "home_yellow_cards": self.home_yellow_cards,
+            "away_yellow_cards": self.away_yellow_cards,
+            "home_red_cards": self.home_red_cards,
+            "away_red_cards": self.away_red_cards,
+            "home_offsides": self.home_offsides,
+            "away_offsides": self.away_offsides,
+            "home_tackles": self.home_tackles,
+            "away_tackles": self.away_tackles,
+            "home_saves": self.home_saves,
+            "away_saves": self.away_saves,
+        }
+
+
+class PlayerMatchStats(db.Model):
+    __tablename__ = "player_match_stats"
+
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("players.id"), nullable=False)
+    match_id = db.Column(db.Integer, db.ForeignKey("matches.id"), nullable=False)
+
+    # Time
+    minutes_played = db.Column(db.Integer, default=0)
+    started = db.Column(db.Boolean, default=False)
+    substituted_in = db.Column(db.Integer)   # minute subbed in
+    substituted_out = db.Column(db.Integer)  # minute subbed out
+
+    # Physical
+    distance_km = db.Column(db.Float)        # total distance run
+    sprints = db.Column(db.Integer, default=0)
+    top_speed_kmh = db.Column(db.Float)
+
+    # Attacking
+    goals = db.Column(db.Integer, default=0)
+    assists = db.Column(db.Integer, default=0)
+    shots = db.Column(db.Integer, default=0)
+    shots_on_target = db.Column(db.Integer, default=0)
+    chances_created = db.Column(db.Integer, default=0)
+
+    # Passing
+    passes_completed = db.Column(db.Integer, default=0)
+    passes_attempted = db.Column(db.Integer, default=0)
+    key_passes = db.Column(db.Integer, default=0)
+    crosses = db.Column(db.Integer, default=0)
+
+    # Defending
+    tackles = db.Column(db.Integer, default=0)
+    interceptions = db.Column(db.Integer, default=0)
+    clearances = db.Column(db.Integer, default=0)
+    blocks = db.Column(db.Integer, default=0)
+    aerial_duels_won = db.Column(db.Integer, default=0)
+    aerial_duels_lost = db.Column(db.Integer, default=0)
+
+    # Discipline
+    fouls_committed = db.Column(db.Integer, default=0)
+    fouls_drawn = db.Column(db.Integer, default=0)
+    yellow_card = db.Column(db.Boolean, default=False)
+    red_card = db.Column(db.Boolean, default=False)
+
+    # Goalkeeper specific
+    saves = db.Column(db.Integer, default=0)
+    goals_conceded = db.Column(db.Integer, default=0)
+
+    # Rating
+    rating = db.Column(db.Float)  # match rating out of 10
+
+    player = db.relationship("Player", backref="match_performances")
+    match = db.relationship("Match", backref="player_stats")
+
+    __table_args__ = (
+        db.UniqueConstraint("player_id", "match_id", name="uq_player_match"),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "player_id": self.player_id,
+            "player_name": f"{self.player.first_name} {self.player.last_name}" if self.player else None,
+            "player_position": self.player.position if self.player else None,
+            "player_jersey": self.player.jersey_number if self.player else None,
+            "match_id": self.match_id,
+            "minutes_played": self.minutes_played,
+            "started": self.started,
+            "substituted_in": self.substituted_in,
+            "substituted_out": self.substituted_out,
+            "distance_km": self.distance_km,
+            "sprints": self.sprints,
+            "top_speed_kmh": self.top_speed_kmh,
+            "goals": self.goals,
+            "assists": self.assists,
+            "shots": self.shots,
+            "shots_on_target": self.shots_on_target,
+            "chances_created": self.chances_created,
+            "passes_completed": self.passes_completed,
+            "passes_attempted": self.passes_attempted,
+            "pass_accuracy": round(self.passes_completed / self.passes_attempted * 100) if self.passes_attempted else None,
+            "key_passes": self.key_passes,
+            "crosses": self.crosses,
+            "tackles": self.tackles,
+            "interceptions": self.interceptions,
+            "clearances": self.clearances,
+            "blocks": self.blocks,
+            "aerial_duels_won": self.aerial_duels_won,
+            "aerial_duels_lost": self.aerial_duels_lost,
+            "fouls_committed": self.fouls_committed,
+            "fouls_drawn": self.fouls_drawn,
+            "yellow_card": self.yellow_card,
+            "red_card": self.red_card,
+            "saves": self.saves,
+            "goals_conceded": self.goals_conceded,
+            "rating": self.rating,
         }
 
 

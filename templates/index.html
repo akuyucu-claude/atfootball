@@ -254,6 +254,16 @@
     </div>
 </div>
 
+<!-- Match Stats Modal -->
+<div class="modal-overlay" id="match-stats-modal" onclick="if(event.target===this)closeModal('match-stats-modal')">
+    <div class="modal" style="max-width:700px;">
+        <div id="match-stats-content"></div>
+        <div class="form-actions">
+            <button class="btn" onclick="closeModal('match-stats-modal')">Close</button>
+        </div>
+    </div>
+</div>
+
 <script src="/static/app.js"></script>
 </body>
 </html>

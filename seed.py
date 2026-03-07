@@ -1,5 +1,6 @@
-from models import Team, Player, Standing, PlayerStats, Match
+from models import Team, Player, Standing, PlayerStats, Match, MatchStats, PlayerMatchStats
 from datetime import date
+import random
 
 
 def seed_database(db):
@@ -141,7 +142,6 @@ def seed_database(db):
 
     # Sample player stats
     for player in players:
-        import random
         stats = PlayerStats(
             player_id=player.id,
             season="2025-26",
@@ -167,6 +167,7 @@ def seed_database(db):
         {"home": "KLA", "away": "AUS", "date": "2025-09-15", "round": 3, "h": 2, "a": 2},
     ]
 
+    matches = []
     for md in sample_matches:
         match = Match(
             home_team_id=teams[md["home"]].id,
@@ -180,5 +181,90 @@ def seed_database(db):
             venue=teams[md["home"]].stadium,
         )
         db.session.add(match)
+        matches.append(match)
+
+    db.session.flush()
+
+    # Match stats for each match
+    for match in matches:
+        home_poss = random.randint(38, 62)
+        home_shots = random.randint(6, 20)
+        away_shots = random.randint(4, 18)
+        stats = MatchStats(
+            match_id=match.id,
+            home_possession=home_poss,
+            home_shots=home_shots,
+            away_shots=away_shots,
+            home_shots_on_target=random.randint(1, min(home_shots, 10)),
+            away_shots_on_target=random.randint(1, min(away_shots, 8)),
+            home_passes=random.randint(280, 550),
+            away_passes=random.randint(250, 520),
+            home_pass_accuracy=random.randint(72, 92),
+            away_pass_accuracy=random.randint(70, 90),
+            home_corners=random.randint(2, 10),
+            away_corners=random.randint(1, 8),
+            home_free_kicks=random.randint(8, 20),
+            away_free_kicks=random.randint(6, 18),
+            home_fouls=random.randint(8, 18),
+            away_fouls=random.randint(6, 16),
+            home_yellow_cards=random.randint(0, 4),
+            away_yellow_cards=random.randint(0, 4),
+            home_red_cards=random.choice([0, 0, 0, 0, 0, 0, 0, 1]),
+            away_red_cards=random.choice([0, 0, 0, 0, 0, 0, 0, 1]),
+            home_offsides=random.randint(0, 5),
+            away_offsides=random.randint(0, 5),
+            home_tackles=random.randint(12, 28),
+            away_tackles=random.randint(10, 26),
+            home_saves=random.randint(1, 7),
+            away_saves=random.randint(1, 6),
+        )
+        db.session.add(stats)
+
+    # Player match stats for each match
+    for match in matches:
+        home_players = [p for p in players if p.team_id == match.home_team_id]
+        away_players = [p for p in players if p.team_id == match.away_team_id]
+
+        for player in home_players + away_players:
+            is_gk = player.position == "Goalkeeper"
+            is_def = player.position == "Defender"
+            is_fwd = player.position == "Forward"
+            minutes = random.choice([90, 90, 90, 90, 75, 60, 45])
+            started = minutes >= 60
+
+            pms = PlayerMatchStats(
+                player_id=player.id,
+                match_id=match.id,
+                minutes_played=minutes,
+                started=started,
+                substituted_in=None if started else random.choice([46, 55, 60, 70]),
+                substituted_out=random.choice([None, None, None, 75, 80, 85]) if started else None,
+                distance_km=round(random.uniform(7.5 if is_gk else 9.0, 8.5 if is_gk else 12.5), 1),
+                sprints=random.randint(5 if is_gk else 15, 12 if is_gk else 35),
+                top_speed_kmh=round(random.uniform(22.0, 34.0), 1),
+                goals=random.choice([0, 0, 0, 0, 0, 1]) if is_fwd else random.choice([0, 0, 0, 0, 0, 0, 0, 1]),
+                assists=random.choice([0, 0, 0, 0, 1]),
+                shots=random.randint(0, 5) if is_fwd else random.randint(0, 2),
+                shots_on_target=random.randint(0, 2) if is_fwd else random.randint(0, 1),
+                chances_created=random.randint(0, 3),
+                passes_completed=random.randint(15 if is_gk else 20, 40 if is_gk else 65),
+                passes_attempted=random.randint(25 if is_gk else 28, 50 if is_gk else 75),
+                key_passes=random.randint(0, 4),
+                crosses=random.randint(0, 5) if not is_gk else 0,
+                tackles=random.randint(0, 2) if is_gk else random.randint(1, 6),
+                interceptions=random.randint(0, 4) if is_def else random.randint(0, 2),
+                clearances=random.randint(2, 8) if is_def else random.randint(0, 2),
+                blocks=random.randint(0, 3) if is_def else random.randint(0, 1),
+                aerial_duels_won=random.randint(0, 5),
+                aerial_duels_lost=random.randint(0, 3),
+                fouls_committed=random.randint(0, 3),
+                fouls_drawn=random.randint(0, 3),
+                yellow_card=random.random() < 0.12,
+                red_card=random.random() < 0.02,
+                saves=random.randint(1, 7) if is_gk else 0,
+                goals_conceded=random.randint(0, 3) if is_gk else 0,
+                rating=round(random.uniform(5.5, 9.0), 1),
+            )
+            db.session.add(pms)
 
     db.session.commit()

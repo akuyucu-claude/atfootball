@@ -320,6 +320,47 @@ td { font-size: 0.9rem; }
 .ai-panel .highlight-list li { padding: 0.4rem 0; border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 0.9rem; }
 .ai-panel .highlight-list li:last-child { border-bottom: none; }
 
+/* Match Stats */
+.stats-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+.stats-header h3 { color: var(--primary); margin-bottom: 0.25rem; }
+.stats-header .stats-score { font-size: 2rem; font-weight: 700; color: var(--primary); }
+.stats-header .stats-teams { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.stats-header .stats-teams .team-name { font-weight: 600; font-size: 1.1rem; flex: 1; }
+.stats-header .stats-teams .team-name:first-child { text-align: right; }
+.stats-header .stats-teams .team-name:last-child { text-align: left; }
+.stats-header .stats-meta { color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem; }
+
+.stat-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+}
+.stat-row:last-child { border-bottom: none; }
+.stat-row .stat-home { text-align: right; font-weight: 600; font-size: 0.95rem; padding-right: 1rem; }
+.stat-row .stat-label { text-align: center; font-size: 0.8rem; color: var(--text-muted); min-width: 120px; }
+.stat-row .stat-away { text-align: left; font-weight: 600; font-size: 0.95rem; padding-left: 1rem; }
+
+.stat-bar-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    margin: 0.25rem 0;
+}
+.stat-bar {
+    height: 6px;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+.stat-bar-home { background: var(--primary); justify-self: end; }
+.stat-bar-away { background: var(--accent); justify-self: start; }
+
+.match-card { cursor: pointer; }
+
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 0.4rem; }
 @keyframes spin { to { transform: rotate(360deg); } }
 

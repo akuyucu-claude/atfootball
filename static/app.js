@@ -225,16 +225,142 @@ async function loadMatches() {
         return;
     }
     list.innerHTML = matches.map(m => `
-        <div class="match-card">
+        <div class="match-card" onclick="viewMatchStats(${m.id})">
             <div class="home">${m.home_team?.name || '?'}</div>
             <div class="score">${m.home_score ?? '-'} : ${m.away_score ?? '-'}</div>
             <div class="away">${m.away_team?.name || '?'}</div>
             <div class="match-meta">
                 Round ${m.round || '-'} &middot; ${m.match_date || ''} &middot; ${m.venue || ''} &middot;
                 <em>${m.status}</em>
+                ${m.stats ? ' &middot; <strong>Stats available</strong>' : ''}
             </div>
         </div>
     `).join('');
+}
+
+// ── Match Stats ──────────────────────────────────────────────────────
+
+async function viewMatchStats(matchId) {
+    const res = await fetch(`${API}/matches`);
+    const matches = await res.json();
+    const match = matches.find(m => m.id === matchId);
+    if (!match) return;
+
+    const content = document.getElementById('match-stats-content');
+    const homeName = match.home_team?.name || '?';
+    const awayName = match.away_team?.name || '?';
+
+    let html = `
+        <div class="stats-header">
+            <div class="stats-teams">
+                <span class="team-name">${homeName}</span>
+                <span class="stats-score">${match.home_score ?? '-'} : ${match.away_score ?? '-'}</span>
+                <span class="team-name">${awayName}</span>
+            </div>
+            <div class="stats-meta">
+                Round ${match.round || '-'} &middot; ${match.match_date || ''} &middot; ${match.venue || ''}
+            </div>
+        </div>
+    `;
+
+    if (match.stats) {
+        const s = match.stats;
+        const statRows = [
+            { label: 'Possession', home: s.home_possession ? s.home_possession + '%' : '-', away: s.away_possession ? s.away_possession + '%' : '-', homeVal: s.home_possession, awayVal: s.away_possession },
+            { label: 'Shots', home: s.home_shots, away: s.away_shots },
+            { label: 'Shots on Target', home: s.home_shots_on_target, away: s.away_shots_on_target },
+            { label: 'Passes', home: s.home_passes, away: s.away_passes },
+            { label: 'Pass Accuracy', home: s.home_pass_accuracy ? s.home_pass_accuracy + '%' : '-', away: s.away_pass_accuracy ? s.away_pass_accuracy + '%' : '-' },
+            { label: 'Corners', home: s.home_corners, away: s.away_corners },
+            { label: 'Free Kicks', home: s.home_free_kicks, away: s.away_free_kicks },
+            { label: 'Fouls', home: s.home_fouls, away: s.away_fouls },
+            { label: 'Yellow Cards', home: s.home_yellow_cards, away: s.away_yellow_cards },
+            { label: 'Red Cards', home: s.home_red_cards, away: s.away_red_cards },
+            { label: 'Offsides', home: s.home_offsides, away: s.away_offsides },
+            { label: 'Tackles', home: s.home_tackles, away: s.away_tackles },
+            { label: 'Saves', home: s.home_saves, away: s.away_saves },
+        ];
+
+        html += '<div style="margin-top:1rem;">';
+        for (const row of statRows) {
+            const hVal = parseInt(row.homeVal ?? row.home) || 0;
+            const aVal = parseInt(row.awayVal ?? row.away) || 0;
+            const total = hVal + aVal || 1;
+            const hPct = (hVal / total * 100).toFixed(0);
+            const aPct = (aVal / total * 100).toFixed(0);
+
+            html += `
+                <div class="stat-row">
+                    <div class="stat-home">${row.home}</div>
+                    <div class="stat-label">${row.label}</div>
+                    <div class="stat-away">${row.away}</div>
+                </div>
+                <div class="stat-bar-container">
+                    <div style="display:flex;justify-content:flex-end;"><div class="stat-bar stat-bar-home" style="width:${hPct}%"></div></div>
+                    <div><div class="stat-bar stat-bar-away" style="width:${aPct}%"></div></div>
+                </div>
+            `;
+        }
+        html += '</div>';
+    } else {
+        html += '<div class="empty-state">No detailed stats recorded for this match.</div>';
+    }
+
+    // Player performance stats
+    try {
+        const pRes = await fetch(`${API}/matches/${matchId}/player-stats`);
+        const playerStats = await pRes.json();
+        if (playerStats.length) {
+            const homePs = playerStats.filter(ps => {
+                const player = teamsCache.length ? true : true;
+                return match.home_team && ps.player_id;
+            });
+
+            html += `
+                <h4 style="color:var(--primary);margin-top:1.5rem;margin-bottom:0.75rem;">Player Performance</h4>
+                <div style="overflow-x:auto;">
+                <table style="font-size:0.8rem;">
+                    <thead><tr>
+                        <th>#</th><th>Player</th><th>Min</th>
+                        <th>Dist (km)</th><th>Sprints</th><th>Top Speed</th>
+                        <th>G</th><th>A</th><th>Shots</th>
+                        <th>Passes</th><th>Tackles</th>
+                        <th>Rating</th>
+                    </tr></thead>
+                    <tbody>
+                    ${playerStats
+                        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+                        .map(ps => `
+                        <tr>
+                            <td>${ps.player_jersey || '-'}</td>
+                            <td><strong>${ps.player_name || '-'}</strong>
+                                <span class="badge badge-${posClass(ps.player_position)}" style="font-size:0.65rem;margin-left:0.3rem;">${(ps.player_position || '').substring(0,3).toUpperCase()}</span>
+                                ${ps.yellow_card ? '<span style="display:inline-block;width:8px;height:12px;background:#eab308;border-radius:1px;margin-left:3px;"></span>' : ''}
+                                ${ps.red_card ? '<span style="display:inline-block;width:8px;height:12px;background:#dc2626;border-radius:1px;margin-left:3px;"></span>' : ''}
+                            </td>
+                            <td>${ps.minutes_played}'${!ps.started ? ' (sub)' : ''}</td>
+                            <td><strong>${ps.distance_km || '-'}</strong></td>
+                            <td>${ps.sprints || 0}</td>
+                            <td>${ps.top_speed_kmh || '-'} km/h</td>
+                            <td>${ps.goals || 0}</td>
+                            <td>${ps.assists || 0}</td>
+                            <td>${ps.shots_on_target || 0}/${ps.shots || 0}</td>
+                            <td>${ps.passes_completed || 0}/${ps.passes_attempted || 0}${ps.pass_accuracy ? ' (' + ps.pass_accuracy + '%)' : ''}</td>
+                            <td>${ps.tackles || 0}</td>
+                            <td><strong style="color:${(ps.rating||0) >= 7 ? 'var(--success)' : (ps.rating||0) >= 6 ? 'var(--text)' : 'var(--accent)'}">${ps.rating || '-'}</strong></td>
+                        </tr>
+                    `).join('')}
+                    </tbody>
+                </table>
+                </div>
+            `;
+        }
+    } catch (e) {
+        // No player stats available
+    }
+
+    content.innerHTML = html;
+    document.getElementById('match-stats-modal').classList.add('active');
 }
 
 // ── Seed Database ─────────────────────────────────────────────────────

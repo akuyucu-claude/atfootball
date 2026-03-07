@@ -1,6 +1,6 @@
 import json
 from flask import Flask, request, jsonify, render_template
-from models import db, Team, Player, Match, Standing, PlayerStats, NewsArticle
+from models import db, Team, Player, Match, MatchStats, PlayerMatchStats, Standing, PlayerStats, NewsArticle
 from seed import seed_database
 from news import fetch_all_news, process_articles_with_llm, scan_news_for_team, scan_news_for_player
 from datetime import date
@@ -205,6 +205,97 @@ def update_match(match_id):
         match.away_team_id = data["away_team_id"]
     db.session.commit()
     return jsonify(match.to_dict())
+
+
+# ── Match Stats API ───────────────────────────────────────────────────
+
+MATCH_STATS_FIELDS = [
+    "home_possession", "home_shots", "away_shots",
+    "home_shots_on_target", "away_shots_on_target",
+    "home_passes", "away_passes", "home_pass_accuracy", "away_pass_accuracy",
+    "home_corners", "away_corners", "home_free_kicks", "away_free_kicks",
+    "home_fouls", "away_fouls", "home_yellow_cards", "away_yellow_cards",
+    "home_red_cards", "away_red_cards", "home_offsides", "away_offsides",
+    "home_tackles", "away_tackles", "home_saves", "away_saves",
+]
+
+
+@app.route("/api/matches/<int:match_id>/stats", methods=["GET"])
+def get_match_stats(match_id):
+    db.get_or_404(Match, match_id)
+    stats = MatchStats.query.filter_by(match_id=match_id).first()
+    if not stats:
+        return jsonify({"error": "No stats recorded for this match"}), 404
+    return jsonify(stats.to_dict())
+
+
+@app.route("/api/matches/<int:match_id>/stats", methods=["POST"])
+def create_match_stats(match_id):
+    db.get_or_404(Match, match_id)
+    existing = MatchStats.query.filter_by(match_id=match_id).first()
+    if existing:
+        return jsonify({"error": "Stats already exist for this match. Use PUT to update."}), 409
+    data = request.get_json()
+    stats = MatchStats(match_id=match_id)
+    for field in MATCH_STATS_FIELDS:
+        if field in data:
+            setattr(stats, field, data[field])
+    db.session.add(stats)
+    db.session.commit()
+    return jsonify(stats.to_dict()), 201
+
+
+@app.route("/api/matches/<int:match_id>/stats", methods=["PUT"])
+def update_match_stats(match_id):
+    db.get_or_404(Match, match_id)
+    stats = MatchStats.query.filter_by(match_id=match_id).first()
+    if not stats:
+        return jsonify({"error": "No stats found. Use POST to create."}), 404
+    data = request.get_json()
+    for field in MATCH_STATS_FIELDS:
+        if field in data:
+            setattr(stats, field, data[field])
+    db.session.commit()
+    return jsonify(stats.to_dict())
+
+
+# ── Player Match Stats API ────────────────────────────────────────────
+
+@app.route("/api/matches/<int:match_id>/player-stats", methods=["GET"])
+def get_player_match_stats(match_id):
+    db.get_or_404(Match, match_id)
+    stats = PlayerMatchStats.query.filter_by(match_id=match_id).all()
+    return jsonify([s.to_dict() for s in stats])
+
+
+@app.route("/api/matches/<int:match_id>/player-stats", methods=["POST"])
+def create_player_match_stats(match_id):
+    db.get_or_404(Match, match_id)
+    data = request.get_json()
+    stats = PlayerMatchStats(match_id=match_id, player_id=data["player_id"])
+    stat_fields = [
+        "minutes_played", "started", "substituted_in", "substituted_out",
+        "distance_km", "sprints", "top_speed_kmh",
+        "goals", "assists", "shots", "shots_on_target", "chances_created",
+        "passes_completed", "passes_attempted", "key_passes", "crosses",
+        "tackles", "interceptions", "clearances", "blocks",
+        "aerial_duels_won", "aerial_duels_lost",
+        "fouls_committed", "fouls_drawn", "yellow_card", "red_card",
+        "saves", "goals_conceded", "rating",
+    ]
+    for field in stat_fields:
+        if field in data:
+            setattr(stats, field, data[field])
+    db.session.add(stats)
+    db.session.commit()
+    return jsonify(stats.to_dict()), 201
+
+
+@app.route("/api/players/<int:player_id>/match-stats", methods=["GET"])
+def get_player_all_match_stats(player_id):
+    db.get_or_404(Player, player_id)
+    stats = PlayerMatchStats.query.filter_by(player_id=player_id).all()
+    return jsonify([s.to_dict() for s in stats])
 
 
 # ── Standings API ──────────────────────────────────────────────────────
