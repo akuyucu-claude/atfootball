@@ -4,6 +4,7 @@
 
 - Python 3.10+
 - pip
+- **macOS only**: Xcode Command Line Tools (run `xcode-select --install` if not already installed)
 
 ## Quick Start
 
@@ -19,6 +20,11 @@ source venv/bin/activate      # Linux/macOS
 
 # 3. Install dependencies
 pip install -r requirements.txt
+
+# If you hit C++ build errors on macOS (e.g. greenlet), run:
+#   xcode-select --install
+# then retry. Or install with pre-built wheels only:
+#   pip install --only-binary :all: -r requirements.txt
 
 # 4. Run the application
 python app.py
