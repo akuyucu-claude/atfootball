@@ -30,7 +30,7 @@ pip install -r requirements.txt
 python app.py
 
 # 5. Open in browser
-# Visit http://localhost:5000
+# Visit http://localhost:5001
 # Click "Seed Database" to populate with Austrian Bundesliga data
 ```
 
